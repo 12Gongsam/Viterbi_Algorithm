@@ -3,7 +3,7 @@ import numpy as np
 
 class Viterbi:
     def __init__(self, p: float):
-        
+        # p : measurement noise
         self.A = np.array([
             [0.975, 0.025],
             [0.025, 0.975]
@@ -37,7 +37,8 @@ class Viterbi:
         N = self.A.shape[0]
         # row : state id, col : time
         deltas = np.zeros((N, T))
-        backpointer = np.zeros((N, T), dtype=int)  # 역추적 테이블
+        # backtracking table
+        backpointer = np.zeros((N, T), dtype=int)  
 
         # Initialization (t=0)
         deltas[0][0] = self.pi[0] * self.B[0][observations[0]]
@@ -48,7 +49,7 @@ class Viterbi:
             if time == 0:
                 continue
             for z in [0, 1]:
-                # 이전 시점에서 오는 모든 경로 중 최대값과 해당 경로의 상태를 기록
+                # Record the maximum value of all paths coming from the previous point and the status of that path.
                 max_val_0 = deltas[0][time - 1] * self.A[0][z]
                 max_val_1 = deltas[1][time - 1] * self.A[1][z]
                 if max_val_0 > max_val_1:
@@ -58,17 +59,17 @@ class Viterbi:
                     deltas[z][time] = max_val_1 * self.B[z][observation]
                     backpointer[z][time] = 1
 
-        # Backward Pass (역추적 단계)
-        # 가장 마지막 시점에서 최적 상태 찾기
+        # Backward Pass
+        # Finding the optimal state at the very last point
         best_last_state = np.argmax(deltas[:, -1])
         best_path = [best_last_state]
 
-        # 역추적하여 최적 경로 복원
+        # Backtracking to restore optimal path
         for time in range(T - 1, 0, -1):
             best_next_state = backpointer[best_path[-1]][time]
             best_path.append(best_next_state)
 
-        # 최적 경로를 반대로 추적했으므로 결과를 뒤집어야 함
+        # Since we traced the optimal path in reverse, we need to invert the results.
         best_path.reverse()
 
         return np.array(best_path), deltas
@@ -78,18 +79,14 @@ def simulate_viterbi(p: float, sequence_length: int, num_realizations: int):
     total_errors = 0
 
     for seed in range(num_realizations):
-        # 숨겨진 상태와 관측 데이터 생성
         true_hidden_states = viterbi.generate_hidden_state(sequence_length, seed)
         observations = viterbi.generate_observation(true_hidden_states, seed)
-
-        # Viterbi 알고리즘으로 상태 추정
         estimated_states, _ = viterbi.algorithm(observations)
-        
-        # 오류 계산
+        # compute error
         errors = np.sum(true_hidden_states != estimated_states)
         total_errors += errors
 
-    # 평균 오류 확률 계산
+    # compute average error probability
     avg_error_probability = total_errors / (sequence_length * num_realizations)
     return avg_error_probability
 
